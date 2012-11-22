@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/jqtouch.css" />
+        <link rel="stylesheet" type="text/css" href="css/app.css" />
+        <title>Mobile Demo</title>
+    </head>
+    <body>
+        <div id="home" class="current">
+            <div class="toolbar">
+                <h1>Mobile Demo</h1>
+            </div>
+            <div class="scroll">
+              <h2>Sign In</h2>
+              <ul class="rounded">
+                <li><input type="email" name="username" value="" id="username" placeholder="Username" /></li>
+                <li><input type="password" name="password" value="" id="password" placeholder="Password"/></li>
+              </ul>
+              <a style="margin:0 10px;color:rgba(0,0,0,.9)" href="#" class="submit whiteButton" id="loginBtn">Submit</a>
+            </div>
+        </div>
+        <div id="agents">
+          <div class="toolbar">
+            <h1>Secret Agents</h1>
+            <a href="#" class="back">Back</a>
+          </div>
+          <ul class="edgetoedge scroll" id="agentlist">
+          </ul>
+        </div>
+        <div id="agent">
+          <div class="toolbar">
+            <h1>Agent Details</h1>
+            <a href="#" class="back">Back</a>
+          </div>
+          <ul class="rounded">
+            <li id="agent-name"></li>
+            <li id="agent-status"></li>
+            <li id="agent-info"></li>
+          </ul>
+        </div>
+        <script type="text/javascript" src="cordova-2.2.0.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script src="js/zepto.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="js/jqtouch.min.js" type="text/javascript" charset="utf-8"></script>
+        <script type="text/javascript">
+            app.initialize();
+            var jQT = new $.jQTouch({
+                icon: 'jqtouch.png',
+                icon4: 'jqtouch4.png',
+                addGlossToIcon: false,
+                startupScreen: 'jqt_startup.png',
+                statusBar: 'black-translucent',
+                themeSelectionSelector: '#jqt #themes ul',
+                preloadImages: []
+            });
+            
+            var login = $("#loginBtn");
+            var app_id = "mobiledemo001";
+            var secret_key = "ZA4fAKzvtSNQYdvn2NM4StGt";
+            // var api_host = "http://mobilewebdemo.herokuapp.com";
+            var api_host = "http://localhost:3000";
+
+            
+            login.on('click', function(e){
+              $.ajax({
+                type: 'GET',
+                url: api_host + "/api/login.json",
+                dataType: 'json',
+                timeout: 2000,
+                context: $('body'),
+                data: { 
+                    "user[email]": $("#username").val(), 
+                    "user[password]": $("#password").val(),
+                    app_id: app_id,
+                    secret_key: secret_key
+                  },
+                success: function(data){
+                  if (data.access_token){
+                    window.localStorage.setItem("access_token", data.access_token.toString());
+                    console.log(window.localStorage.getItem("access_token"));
+                    jQT.goTo('#agents', 'slideleft');
+                  } else {
+                    console.log("data with error");
+                    alert(data.error);
+                  }
+                },
+                error: function(xhr, type){
+                  console.log(type);
+                  alert('Username/password not found!')
+                }
+              });
+            });
+            
+
+            $('#agents').bind('pageAnimationEnd', function(e, info){
+              $.ajax({
+                type: 'GET',
+                url: api_host + "/api/hit_lists.json",
+                dataType: 'json',
+                timeout: 2000,
+                context: $('body'),
+                data: { 
+                    auth_token: window.localStorage.getItem("access_token"),
+                    app_id: app_id,
+                    secret_key: secret_key
+                  },
+                success: function(data){
+                  
+                  console.log(data.agents.length);
+                  if (data.agents.length > 1){
+                     for (var i = 0; i < data.agents.length; i++){
+                       item = "<li class='agentstub'><a href='#' class='agentitem' data-agentid='" + data.agents[i].id + "'>" + data.agents[i].ag + "<small>" + data.agents[i].st + "</small></a></li>";
+                       $("#agentlist").append(item);
+                     }
+                   } else {
+                     item = "<li><a href='#'>No agent on the list yet</small></a></li>";
+                     $("#agentlist").append(item);
+                   }
+                },
+                error: function(xhr, type){
+                  alert('Request not authorized!')
+                }
+              });
+            });
+            
+            $(document).on('click', '.agentitem', function(){
+              var agent_id = $(this).data("agentid");
+              console.log("triggered! " + agent_id);
+              $.ajax({
+                type: 'GET',
+                url: api_host + "/api/hit_lists/" + agent_id + ".json",
+                dataType: 'json',
+                timeout: 2000,
+                context: $('body'),
+                data: { 
+                    auth_token: window.localStorage.getItem("access_token"),
+                    app_id: app_id,
+                    secret_key: secret_key
+                  },
+                success: function(data){
+                  if (data.agent){
+                    $("li#agent-name").append("<strong>Name: " + data.agent.ag + "</strong>");
+                    $("li#agent-status").append("<strong>Status: " + data.agent.st + "</strong>");
+                    $("li#agent-info").append(data.agent.sm);
+                    jQT.goTo('#agent', 'slideleft');
+                  } else {
+                    alert('Item not found.')
+                  }
+                },
+                error: function(xhr, type){
+                  alert('Request not authorized!')
+                }
+              });
+            });
+        </script>
+    </body>
+</html>
